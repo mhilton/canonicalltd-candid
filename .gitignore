@@ -8,3 +8,4 @@ prime/
 stage/
 snap/.snapcraft/
 *.snap
+__pycache__/

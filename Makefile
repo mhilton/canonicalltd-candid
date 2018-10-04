@@ -2,40 +2,21 @@
 # Licensed under the AGPLv3, see LICENCE file for details.
 # Makefile for the candid identity service.
 
-ifndef GOPATH
-$(warning You need to set up a GOPATH.)
-endif
-
 PROJECT := github.com/CanonicalLtd/candid
 PROJECT_DIR := $(shell go list -e -f '{{.Dir}}' $(PROJECT))
 
 GIT_COMMIT := $(shell git rev-parse --verify HEAD)
 GIT_VERSION := $(shell git describe --dirty)
 
-ifeq ($(shell uname -p | sed -r 's/.*(x86|armel|armhf).*/golang/'), golang)
-	GO_C := golang
-	INSTALL_FLAGS :=
-else
-	GO_C := gccgo-4.9 gccgo-go
-	INSTALL_FLAGS := -gccgoflags=-static-libgo
-endif
-
 define DEPENDENCIES
   build-essential
   bzr
   juju-mongodb
   mongodb-server
-  $(GO_C)
+  golang-go
 endef
 
 default: build
-
-$(GOPATH)/bin/godeps:
-	go get -u github.com/rogpeppe/godeps
-
-# Start of GOPATH-dependent targets. Some targets only make sense -
-# and will only work - when this tree is found on the GOPATH.
-ifeq ($(CURDIR),$(PROJECT_DIR))
 
 build: version/init.go
 	go build $(PROJECT)/...
@@ -53,26 +34,6 @@ clean:
 	-$(RM) version/init.go
 	-snapcraft clean
 
-else
-
-build:
-	$(error Cannot $@; $(CURDIR) is not on GOPATH)
-
-check:
-	$(error Cannot $@; $(CURDIR) is not on GOPATH)
-
-install:
-	$(error Cannot $@; $(CURDIR) is not on GOPATH)
-
-release:
-	$(error Cannot $@; $(CURDIR) is not on GOPATH)
-
-clean:
-	$(error Cannot $@; $(CURDIR) is not on GOPATH)
-
-endif
-# End of GOPATH-dependent targets.
-
 # Reformat source files.
 format:
 	gofmt -w -l .
@@ -84,14 +45,6 @@ simplify:
 # Run the candid server.
 server: install
 	candidsrv -logging-config INFO cmd/candidsrv/config.yaml
-
-# Update the project Go dependencies to the required revision.
-deps: $(GOPATH)/bin/godeps
-	$(GOPATH)/bin/godeps -u dependencies.tsv
-
-# Generate the dependencies file.
-create-deps: $(GOPATH)/bin/godeps
-	godeps -t $(shell go list $(PROJECT)/...) > dependencies.tsv || true
 
 # Generate version information
 version/init.go: version/init.go.tmpl FORCE
@@ -147,8 +100,6 @@ help:
 	@echo 'make server - Start the candid server.'
 	@echo 'make clean - Remove object files from package source directories.'
 	@echo 'make sysdeps - Install the development environment system packages.'
-	@echo 'make deps - Set up the project Go dependencies.'
-	@echo 'make create-deps - Generate the Go dependencies file.'
 	@echo 'make format - Format the source files.'
 	@echo 'make simplify - Format and simplify the source files.'
 

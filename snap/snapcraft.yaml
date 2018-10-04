@@ -19,39 +19,51 @@ apps:
      - network
 
 parts:
-  # Dependencies
-  go:
-    source-tag: go1.11
-
   # Candid
   candid:
-    after:
-     - go
-    plugin: godeps
+    plugin: x-go-modules
     source: .
     source-type: git
-    go-importpath: github.com/CanonicalLtd/candid
     build-packages:
      - bzr
+    go-packages:
+     - ./cmd/candid
+     - ./cmd/candidsrv
+    prime:
+     - bin/candid
+     - bin/candidsrv
+    override-build: |
+      set -e
+      GIT_COMMIT=`git rev-parse --verify HEAD`
+      GIT_VERSION=`git describe --dirty`
+      for cmd in go.gofmt gofmt
+      do
+          $cmd -r "unknownVersion -> Version{GitCommit: \"${GIT_COMMIT}\", Version: \"${GIT_VERSION}\",}" version/init.go.tmpl > version/init.go && break
+      done
+      snapcraftctl build
+
+  bakery-keygen:
+    plugin: x-go-modules
+    source: https://github.com/go-macaroon-bakery/macaroon-bakery
+    source-type: git
+    source-tag: v2.0.0
+    build-snaps:
+      - go
+    go-packages:
+      - ./cmd/bakery-keygen
+    prime:
+      - bin/bakery-keygen
+
+  jq:
+    plugin: dump
     stage-packages:
      - jq
     organize:
       usr/bin/: bin/
       usr/lib/: lib/
     prime:
-     - bin/bakery-keygen
-     - bin/candid
-     - bin/candidsrv
      - bin/jq
      - lib/*/libonig.so*
-    override-build: |
-      snapcraftctl build
-
-      set -ex
-
-      # Build bakery-keygen
-      GOPATH=$(readlink --canonicalize ../go/) go get gopkg.in/macaroon-bakery.v2/cmd/bakery-keygen
-      cp ../go/bin/bakery-keygen ${SNAPCRAFT_PART_INSTALL}/bin/
 
   snapcraft:
     plugin: dump
